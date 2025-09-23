@@ -32,7 +32,7 @@ static int myMaxPull = 75;  // 0 - 127 [kg], must be scaled with VESC ppm settin
 // set anywhere between -9 dBm (0.125 mW) to 22 dBm (158 mW). Note that the maximum ERP
 // (which is what your antenna maximally radiates) on the EU ISM band is 25 mW, and that
 // transmissting without an antenna can damage your hardware.
-#define TRANSMIT_POWER      0
+#define TRANSMIT_POWER      19
 
 
 
@@ -271,7 +271,7 @@ void loop()
 
   // Überprüfe den Tachometerwert, um den Betriebsmodus festzulegen
   // TODO: Bremse einbauen für kürzeres Seil ca. 1500
-  if (vescTachometer <200 ) {
+  if (vescTachometer <-6000 ) {
   // Zustand 1: Normaler Betrieb (mehr als X Meter Seil abgewickelt)
 
   
