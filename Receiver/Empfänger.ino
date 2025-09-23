@@ -176,15 +176,6 @@ void loop()
   float SNR=radio.getSNR(); int snr=(int)SNR;
   int vescbattery=(int)vescBattery;
 
-  /*-------------------------------------------------------------------
-  // Windensteuerung
-  //-------------------------------------------------------------------
-  // Regelung PID etc. periodisch aufrufen
-  if (millis() - lastRegelungsTime > RegelungsInterval) {
-    lastRegelungsTime = millis();
-    Windensteuerung();
-  }
-*/
   //-------------------------------------------------------------------
   // Display
   //-------------------------------------------------------------------
@@ -404,20 +395,10 @@ void Vesc_Daten()
     }
 }
 
-/*------------------------------------------------------------------------
-void Windensteuerung()
-//------------------------------------------------------------------------
-{  // hier verbrate ich 5 msec um zu prüfen ob trotzdem alles funkt
-  do {
-      //Serial.println("da brat ich mir nen Storch");
-  } while (millis() - lastRegelungsTime > 3);
-}
-*/
 // --------------------------------------------------------------
 AntwortStruktur ParseString(String Record)
 // --------------------------------------------------------------
 {
-  // Serial.println(Record);
 
   int i = 0;
   int j = 0;
