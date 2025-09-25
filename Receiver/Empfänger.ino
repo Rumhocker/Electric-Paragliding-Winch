@@ -274,12 +274,12 @@ void loop()
   
   if (button.pressedNow()) {
     // Prüfe, ob der Button gedrückt wird, um die normale Steuerung zu überbrücken
-    Serial.println("Manuelles Einholen: Button gedrückt (vor 60m Grenze)");
+    //    Serial.println("Manuelles Einholen: Button gedrückt (vor 60m Grenze)");
     ledcWrite(PWM_PIN, 200); // Manuelles Einholen mit PWM 200
 
   } else {
     // Wenn der Button nicht gedrückt ist, nutze die normale Steuerung
-    // Serial.println("Normale Steuerung (vor 60m Grenze)");
+    //    Serial.println("Normale Steuerung (vor 60m Grenze)");
     pwmWriteTimeValue = 10.526 * currentPull + 137;
     pwmWriteTimeValue = constrain(pwmWriteTimeValue, 0, 900);
     ledcWrite(PWM_PIN, pwmWriteTimeValue);
@@ -290,17 +290,15 @@ void loop()
 
   // Wenn der Tachometerwert -6000 oder größer ist, hat der Button die Kontrolle
   if (button.pressedNow()) {
-    Serial.println("Manuelles Einholen der letzten 60m: Button gedrückt");
+    //    Serial.println("Manuelles Einholen der letzten 60m: Button gedrückt");
     ledcWrite(PWM_PIN, 200); // Manuelles Einholen mit PWM 200
 
   } else {
     // Wenn der Button NICHT gedrückt ist, schalte die Winde ab
-    Serial.println("Sicherheitsabschaltung: < 60m Seil und Button nicht gedrückt");
+    //    Serial.println("Sicherheitsabschaltung: < 60m Seil und Button nicht gedrückt");
     ledcWrite(PWM_PIN, 1);
     } 
   }
-  Serial.println(pwmWriteTimeValue);
-
 }
 //------------------------------------------------------------------------
 // Interrupt Service Routinen
@@ -386,7 +384,7 @@ void Vesc_Daten()
       vescDutyCycle = vescUART.data.dutyCycleNow;    
     } 
     else {
-//      Serial.println("Failed to get data from VESC!");
+    Serial.println("Failed to get data from VESC!");
     }
 }
 
@@ -394,7 +392,6 @@ void Vesc_Daten()
 AntwortStruktur ParseString(String Record)
 // --------------------------------------------------------------
 {
-
   int i = 0;
   int j = 0;
   int counter = 0;
