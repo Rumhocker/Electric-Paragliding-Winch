@@ -189,7 +189,6 @@ void loop()
       display.drawString(0, 36, String("L: ") + (vescTachometer/100) + "m");
       //display.drawString(0, 48, String("Last TX / RX: ") + lastTxLoraMessageMillis/100 + " / " + lastRxLoraMessageMillis/100);
       display.display();
-    
   }
 
   //-------------------------------------------------------------------
@@ -197,10 +196,9 @@ void loop()
   //-------------------------------------------------------------------
   if (rxFlag) {          // RX Flag wird gesetzt wenn ein Paktet VOLLSTÄNDIG empfangen wurde
     lastRxLoraMessageMillis = millis();
-    Serial.println("----------------------------------------");
     rxFlag = false;
     rxdata = EmpfangeNachricht();
-    //String zerlegen ween mehrer Float Werte in der Nachricht sind
+    //String zerlegen wenn mehrer Float Werte in der Nachricht sind
     Antwort = ParseString(rxdata);
         Serial.print("ID: ");
         Serial.print(Antwort.currentId);
