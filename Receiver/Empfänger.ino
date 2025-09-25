@@ -58,7 +58,6 @@ VescUart vescUART;
 String rxdata;
 String txdata;
 
-int cnt = 0;
 int transmissionState = RADIOLIB_ERR_NONE;  // save transmission states between loops
 
 volatile bool rxFlag = false;
@@ -336,8 +335,6 @@ void SendeNachricht(String Nachricht)
 String EmpfangeNachricht()
 //------------------------------------------------------------------------
 {
-  cnt++;
-  // Serial.println(cnt);
   String Nachricht;
   int state = radio.readData(Nachricht);
   if (state == RADIOLIB_ERR_NONE) {
