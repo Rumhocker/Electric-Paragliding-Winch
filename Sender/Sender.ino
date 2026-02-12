@@ -21,7 +21,7 @@ static int myMaxPull = 75;  // 0 - 127 [kg], must be scaled with VESC ppm settin
 
 // Number from 5 to 12. Higher means slower but higher "processor gain",
 // meaning (in nutshell) longer range and more robust against interference. 
-#define SPREADING_FACTOR    9
+#define SPREADING_FACTOR    28
 
 // Transmit power in dBm. 0 dBm = 1 mW, enough for tabletop-testing. This value can be
 // set anywhere between -9 dBm (0.125 mW) to 22 dBm (158 mW). Note that the maximum ERP
@@ -29,10 +29,15 @@ static int myMaxPull = 75;  // 0 - 127 [kg], must be scaled with VESC ppm settin
 // transmissting without an antenna can damage your hardware.
 #define TRANSMIT_POWER      0
 
-HotButton btnup(7, true, LOW);
+// nur bei Heltec V4 zum aktivieren des Boostchip GC1109
+#define LORA_PA_EN     2
+#define LORA_PA_TX_EN  46
+
+//freie Pins am V4 = 3, 4, 5, 6, 15, 16, 47, 48 
+HotButton btnup(4, true, LOW);
 #define ROTARY_ENCODER_A_PIN 5
 #define ROTARY_ENCODER_B_PIN 6
-AiEsp32RotaryEncoder rotary = AiEsp32RotaryEncoder(5, 6, 4, -1, 4,false); //PIN A oder CLK=5; PIN B oder DT=6; Taster oder SW (nicht belegt weil schon auf HOTBUTTON)=4; Kein VCC Anschluß oder direkt 5V?=-1; RotarySteps=4; Pullup Widerstand?=false
+AiEsp32RotaryEncoder rotary = AiEsp32RotaryEncoder(5, 6, 4, -1, 4,false); //PIN A oder CLK=5; PIN B oder DT=6; Taster oder SW (btnup)=4; Kein VCC Anschluß oder direkt 5V?=-1; RotarySteps=4; Pullup Widerstand?=false
 
 #define sep ","            //Trennzeichen
 
@@ -56,13 +61,12 @@ bool toogleSlow = true;
 int8_t targetPull = 0;   // pull value range from -127 to 127
 int currentPull = 0;          // current active pull on vesc
 bool stateChanged = false;
-int currentState = 0;   // 0 = no pull/no brake, 1 = default pull (~7kg), 2 = pre pull, 3 = take off pull, 4 = full pull, 5 = extra strong pull
+int currentState = 0;   // 0 = no pull/no brake, 1 = default pull (~7kg), 2 = pre pull, 3 = take off pull, 4 = full pull
 int defaultPull = 7;  //in kg
 int prePullScale = 20;      //in %
 int takeOffPullScale = 55;  //in %
 int fullPullScale = 80;     //in %
-int strongPullScale = 100;  //in %
-int rewinchPull = 10;
+int rewinchPull = 7;
 //uint8_t vescBattery = 0;
 //uint8_t vescTempMotor = 0;
 //uint8_t vescTachometer = 0;
@@ -81,7 +85,6 @@ AntwortStruktur Antwort;  // Antwort der Winde
 void setup()
 //-------------------------------------------------------------------
 {
-  gpio_install_isr_service(0);
   heltec_setup();
   Serial.begin(115200);
   heltec_ve(true);
@@ -109,6 +112,8 @@ void setup()
   StartReceive();                        //Start Lesen von LoRa-Paketen
 
   // Dislplay Einstellungen
+  display.init();
+//  display.flipScreenVertically();
   display.setFont(ArialMT_Plain_16);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.println("Windensteuerung");
@@ -206,7 +211,7 @@ void loop()
     rxdata = EmpfangeNachricht();
       //String zerlegen ween mehrer Float Werte in der Nachricht sind
       Antwort = ParseString(rxdata);
-      Serial.print("Spannung : ");
+      Serial.print("Akkustand: ");
       Serial.print(Antwort.vescBattery);
       Serial.print(" Temp : ");
       Serial.println(Antwort.vescTempMotor);
@@ -221,8 +226,8 @@ void loop()
 
   btnup.update();
   if (btnup.isSingleClick()) {
-  Serial.println("Einfach hoch\n");
-  if ( currentState < 5) {
+  // Serial.println("Einfach hoch\n");
+  if ( currentState < 4) {
         currentState = currentState + 1;
         stateChanged = true;
         if (currentState == 0 ) {
@@ -233,7 +238,7 @@ void loop()
     }
 
   if (btnup.isDoubleClick()) {
-  //Serial.println("Doppelt runter\n");
+  // Serial.println("Doppelt runter\n");
   if (currentState > 1) {
     currentState = currentState - 1;
     stateChanged = true;
@@ -255,7 +260,7 @@ void loop()
   }
 
   // state machine
-  // -2 = hard brake -1 = soft brake, 0 = no pull / no brake, 1 = default pull (2kg), 2 = pre pull, 3 = take off pull, 4 = full pull, 5 = extra strong pull
+  //  0 = no pull / no brake, 1 = default pull (7kg), 2 = pre pull, 3 = take off pull, 4 = full pull
   switch(currentState) {
     case 0:
       targetPull = 0; // -> neutral, no pull / no brake
@@ -271,9 +276,6 @@ void loop()
       break;
     case 4:
       targetPull = myMaxPull * fullPullScale / 100;
-      break;
-    case 5:
-      targetPull = myMaxPull * strongPullScale / 100;
       break;
     case 9:
       targetPull = rewinchPull / 100;
@@ -366,7 +368,13 @@ void radio_init()
 {
   // die folgeden Einstellungen müssen bei Sender und Empfänger gleich sein
   // Wenn man keine Angaben macht, werden default Einstellungen übernommen
-
+  // ACHTUNG!! Nur für Heltec V4   
+	pinMode(LORA_PA_EN,OUTPUT);
+	pinMode(LORA_PA_TX_EN,OUTPUT);
+	digitalWrite(LORA_PA_EN,HIGH);
+	digitalWrite(LORA_PA_TX_EN,HIGH);
+  // V4 Ende
+  
   Serial.printf("Frequency: %.2f MHz\n", FREQUENCY);
   radio.setFrequency(FREQUENCY);
   Serial.printf("Bandwidth: %.1f kHz\n", BANDWIDTH);
