@@ -96,7 +96,6 @@ AntwortStruktur Antwort;  // Antwort des Senders
 void setup()
 //-------------------------------------------------------------------
 {
-  gpio_install_isr_service(0);
   heltec_setup();
   Serial.begin(115200);
   heltec_ve(true);
@@ -147,6 +146,7 @@ void loop()
   //Sync Words können die Übertragungen der jeweils anderen nicht empfangen. Dies ist eine Möglichkeit
   //Funkgeräte herausfiltern, die Sie ignorieren möchten, ohne ein Adressierungsschema zu erstellen.
   //---------------------------------------------------------------------------------------------------------------------
+  
   if (btnup.pressedNow()) {
     currentId = (rotary.readEncoder());
     display.clear();
@@ -168,6 +168,8 @@ void loop()
   } else if (currentId == 5) {
     radio.setSyncWord(0x65);  //LoRa sync word to be set.
   }
+
+  radio.setSyncWord(0x21);  //LoRa sync word to be set.
 
   
   //Kommastellen abschneiden
@@ -205,10 +207,10 @@ void loop()
         Serial.print(" - Status: ");
         Serial.println(Antwort.currentState);
     Vesc_Daten();
-    //      Serial.println(vescTachometer);
-    //      Serial.println(vescTempMotor);
-    //      Serial.println(vescBattery);
-    //      Serial.println(vescDutyCycle); //drehzahl
+          Serial.println(vescTachometer);
+          Serial.println(vescTempMotor);
+          Serial.println(vescBattery);
+          Serial.println(vescDutyCycle); //drehzahl
 
 
     //-------------------------------------------------------------------
@@ -239,7 +241,7 @@ void loop()
   if (millis() - lastRxLoraMessageMillis > loraTimeout) {
     // Timeout erreicht
     Serial.println("Verbindung verloren!");
-    currentPull = 0;
+    currentPull = -21; //Bremse wird aktiviert (12.05 * 21 + 270 = 17) Pulsbreite 17 bremst weich.
   }
 
 
@@ -247,12 +249,12 @@ void loop()
   // PWM Berechnung und Ausgabe 
   //------------------------------------------------------------------------
 
-  // Mein Motor QS205 5000W 5T hat eine lineare Kennlinie. Bei einer Pulsbreite von 150 geht es los mit ca. 1kg
-  // Bei einer Pulsbreite von 900 habe ich 70kg Zugkraft. Y ist Zugkraft und X Pulsbreite
-  // f(x)=mX+n ---> m=(Y2-Y1)/(X2-X1) ---> m=(70-1)/(900-150) m rund 0,095
-  // Nullstelle bei Pulsbreite 140: 0=mX+n ---> 0=0,095*140+n ---> n=-13
-  //  Zugkraft(Y)=0.095*Pulsbreite(X)-13 | +13 --->  0.095*X=Y+13	| :0.095 ---> 
-  // Pulsbreite(X)=10.526*Zugkraft(Y)+136.842
+  // Mein Motor QS205 5000W 5T hat eine lineare Kennlinie. Bei einer Pulsbreite von 270 geht es los mit ca. 1kg
+  // Bei einer Pulsbreite von 900 habe ich 53kg Zugkraft. Y ist Zugkraft und X Pulsbreite
+  // f(x)=mX+n ---> m=(Y2-Y1)/(X2-X1) ---> m=(53-3)/(900-300) m rund 0,083
+  // Nullstelle bei Pulsbreite 290: 0=mX+n ---> 0=0,083*290+n ---> n=-22,41
+  //  Zugkraft(Y)=0.083*Pulsbreite(X)-22,41 | +22,41 --->  0.083*X=Y+22,41	| :0.083 ---> 
+  // Pulsbreite(X)=12,048*Zugkraft(Y)+290
   // |
   // |                        .
   // |                     .
@@ -268,35 +270,35 @@ void loop()
 
   // Überprüfe den Tachometerwert, um den Betriebsmodus festzulegen
   // TODO: Bremse einbauen für kürzeres Seil ca. 1500
-  if (vescTachometer <-6000 ) {
+  if (vescTachometer <-1500 ) {
   // Zustand 1: Normaler Betrieb (mehr als X Meter Seil abgewickelt)
 
   
-  if (button.pressedNow()) {
-    // Prüfe, ob der Button gedrückt wird, um die normale Steuerung zu überbrücken
-    //    Serial.println("Manuelles Einholen: Button gedrückt (vor 60m Grenze)");
-    ledcWrite(PWM_PIN, 200); // Manuelles Einholen mit PWM 200
-
-  } else {
-    // Wenn der Button nicht gedrückt ist, nutze die normale Steuerung
-    //    Serial.println("Normale Steuerung (vor 60m Grenze)");
-    pwmWriteTimeValue = 10.526 * currentPull + 137;
-    pwmWriteTimeValue = constrain(pwmWriteTimeValue, 0, 900);
-    ledcWrite(PWM_PIN, pwmWriteTimeValue);
+    if (button.pressedNow()) {
+      // Prüfe, ob der Button gedrückt wird, um die normale Steuerung zu überbrücken
+      //    Serial.println("Manuelles Einholen: Button gedrückt (vor XX m Grenze)");
+      ledcWrite(PWM_PIN, 350); // Manuelles Einholen mit PWM 350
+    }
+    else {
+      // Wenn der Button nicht gedrückt ist, nutze die normale Steuerung
+      //    Serial.println("Normale Steuerung (vor XXm Grenze)");
+      pwmWriteTimeValue = 12.05 * currentPull + 270;
+      pwmWriteTimeValue = constrain(pwmWriteTimeValue, 0, 900);
+//      Serial.println(pwmWriteTimeValue);
+      ledcWrite(PWM_PIN, pwmWriteTimeValue);
     }
   }
   else {
   // Zustand 2: Sicherheit und manuelles Einholen (weniger als X Meter Seil abgewickelt oder bereits mehr eingezogen)
 
-  // Wenn der Tachometerwert -6000 oder größer ist, hat der Button die Kontrolle
-  if (button.pressedNow()) {
-    //    Serial.println("Manuelles Einholen der letzten 60m: Button gedrückt");
-    ledcWrite(PWM_PIN, 200); // Manuelles Einholen mit PWM 200
-
-  } else {
-    // Wenn der Button NICHT gedrückt ist, schalte die Winde ab
-    //    Serial.println("Sicherheitsabschaltung: < 60m Seil und Button nicht gedrückt");
-    ledcWrite(PWM_PIN, 1);
+    // Wenn der Tachometerwert -1500 oder größer ist, hat der Button die Kontrolle
+    if (button.pressedNow()) {
+    //    Serial.println("Manuelles Einholen der letzten XXm: Button gedrückt");
+      ledcWrite(PWM_PIN, 350); // Manuelles Einholen mit PWM 350
+    }
+    else {
+      // Wenn der Button NICHT gedrückt ist, schalte die Winde ab und bremst den Motor
+      ledcWrite(PWM_PIN, 10);
     } 
   }
 }
@@ -306,8 +308,7 @@ void loop()
 void txIsr() {  // txIsr  Interrupte wird ausgelöst wenn Paktet VOLLSTÄNDIG gesendet wurde
   txFlag = true;
 }
-void rxIsr() {  // // rxIsr  Interrupte wird ausgelöst wenn Paktet VOLLSTÄNDIG empfangen wurde
-  // we got a packet, set the flag
+void rxIsr() { // rxIsr  Interrupte wird ausgelöst wenn Paktet VOLLSTÄNDIG empfangen wurde
   rxFlag = true;
 }
 
