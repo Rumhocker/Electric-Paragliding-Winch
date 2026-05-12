@@ -21,13 +21,13 @@ static int myMaxPull = 75;  // 0 - 127 [kg], must be scaled with VESC ppm settin
 
 // Number from 5 to 12. Higher means slower but higher "processor gain",
 // meaning (in nutshell) longer range and more robust against interference. 
-#define SPREADING_FACTOR    28
+#define SPREADING_FACTOR    7
 
 // Transmit power in dBm. 0 dBm = 1 mW, enough for tabletop-testing. This value can be
 // set anywhere between -9 dBm (0.125 mW) to 22 dBm (158 mW). Note that the maximum ERP
 // (which is what your antenna maximally radiates) on the EU ISM band is 25 mW, and that
 // transmissting without an antenna can damage your hardware.
-#define TRANSMIT_POWER      0
+#define TRANSMIT_POWER      28
 
 // nur bei Heltec V4 zum aktivieren des Boostchip GC1109
 #define LORA_PA_EN     2
@@ -51,7 +51,7 @@ volatile int count;
 volatile bool rxFlag = false;
 volatile bool txFlag = false;
 unsigned long letzteAktion = 0;        //
-unsigned long Pause = 1000;            //
+unsigned long Pause = 200;            //
 unsigned long RegelungsInterval = 6;  //
 unsigned long lastRegelungsTime = 0;   //
 unsigned long SendTimeOut = 3000;       //
@@ -175,12 +175,18 @@ void loop()
 
     }
   }
- if (millis() - letzteAktion > Pause) {
-    letzteAktion = millis();
-    AntwortErhalten = false;
 
-    // SendeNachricht(StartWinde + String(sep) + String(SollSeilspannung, 0));
-    SendeNachricht(String(myID) + String(sep) + String(currentState) + String(sep) + String(targetPull));
+  // 1. Sofortiges senden nach Statusänderung
+  if (stateChanged) {
+  stateChanged = false;
+  letzteAktion = millis(); // Timer zurücksetzen
+  SendeNachricht(String(myID) + String(sep) + String(currentState) + String(sep) + String(targetPull));
+  }
+  // 2. Regelmäßiges Update falls sich nichts ändert
+  if (millis() - letzteAktion > Pause) {
+  letzteAktion = millis();
+  AntwortErhalten = false;
+  SendeNachricht(String(myID) + String(sep) + String(currentState) + String(sep) + String(targetPull));
   }
 
   //-------------------------------------------------------------------
