@@ -8,6 +8,11 @@
 static int myID = 1;    // set to your desired transmitter id!!! [unique number from 1 - 15]
 static int myMaxPull = 75;  // 0 - 127 [kg], must be scaled with VESC ppm settings
 
+// ------------------------------------------------------------------------
+// Wähle hier die Version: 1 für V4, 0 für V3
+// ------------------------------------------------------------------------
+#define IS_HELTEC_V4 1  // Auf 0 setzen für V3, auf 1 für V4
+
 #include <heltec_unofficial.h>
 #include "AiEsp32RotaryEncoder.h"
 
@@ -29,9 +34,12 @@ static int myMaxPull = 75;  // 0 - 127 [kg], must be scaled with VESC ppm settin
 // transmissting without an antenna can damage your hardware.
 #define TRANSMIT_POWER      28
 
-// nur bei Heltec V4 zum aktivieren des Boostchip GC1109
-#define LORA_PA_EN     2
-#define LORA_PA_TX_EN  46
+
+#if IS_HELTEC_V4
+  // Spezifisch für Heltec V4 (Boostchip GC1109)
+  #define LORA_PA_EN    2
+  #define LORA_PA_TX_EN 46
+#endif
 
 //freie Pins am V4 = 3, 4, 5, 6, 15, 16, 47, 48 
 HotButton btnup(4, true, LOW);
@@ -388,12 +396,15 @@ void radio_init()
 {
   // die folgeden Einstellungen müssen bei Sender und Empfänger gleich sein
   // Wenn man keine Angaben macht, werden default Einstellungen übernommen
-  // ACHTUNG!! Nur für Heltec V4   
-	pinMode(LORA_PA_EN,OUTPUT);
-	pinMode(LORA_PA_TX_EN,OUTPUT);
-	digitalWrite(LORA_PA_EN,HIGH);
-	digitalWrite(LORA_PA_TX_EN,HIGH);
-  // V4 Ende
+
+  // Nur wenn V4 aktiv ist
+  #if IS_HELTEC_V4
+    pinMode(LORA_PA_EN, OUTPUT);
+    pinMode(LORA_PA_TX_EN, OUTPUT);
+    digitalWrite(LORA_PA_EN, HIGH);
+    digitalWrite(LORA_PA_TX_EN, HIGH);
+    Serial.println("V4 Boostchip aktiviert.");
+  #endif
   
   Serial.printf("Frequency: %.2f MHz\n", FREQUENCY);
   radio.setFrequency(FREQUENCY);
