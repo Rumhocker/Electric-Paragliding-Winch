@@ -26,7 +26,7 @@ static int myMaxPull = 75;  // 0 - 127 [kg], must be scaled with VESC ppm settin
 
 // Number from 5 to 12. Higher means slower but higher "processor gain",
 // meaning (in nutshell) longer range and more robust against interference. 
-#define SPREADING_FACTOR   9
+#define SPREADING_FACTOR   7
 
 // Transmit power in dBm. 0 dBm = 1 mW, enough for tabletop-testing. This value can be
 // set anywhere between -9 dBm (0.125 mW) to 22 dBm (158 mW). Note that the maximum ERP
@@ -223,16 +223,22 @@ void loop()
     StartReceive();  //starte Interrupt-gesteuerte Empfangsmethode
   }
 
+  // bei Fehler wenn kein Target Pull empfangen wird:
+  if (millis() - lastRxLoraMessageMillis > loraTimeout) {
+    // Timeout erreicht
+    Serial.println("Verbindung verloren!");
+    currentPull = -10; //Bremse wird aktiviert (12.05 * -10 + 270 = 145) Pulsbreite 145 bremst mittel stark.
+  }
 
   //-------------------------------------------------------------------
   // Übergebe Zugkraft
   //-------------------------------------------------------------------
   targetPull = Antwort.targetPull;
-  if (targetPull < 0) {
+  if (targetPull < -10) {
     currentPull = 0;
   } else {
     currentPull = targetPull;
-    currentPull = constrain(currentPull, 0, 110); // Hält den Wert im Bereich
+    currentPull = constrain(currentPull, -10, 110); // Hält den Wert im Bereich
   }
 
   //------------------------------------------------------------------------
@@ -255,33 +261,21 @@ void loop()
   // |      .
   // |_________________________________
 
-  // lese Tachometerwert:
+// lese Tachometerwert:
   Vesc_Daten();
 
-  // Zuerst die Lebenszeichen prüfen
-  bool isTimeout = (millis() - lastRxLoraMessageMillis > loraTimeout);
-  bool isStatus0 = (Antwort.currentState == 0);
-  bool isStatusRewinch =(Antwort.currentState == 9)
-
-  if (isTimeout || isStatus0) {
-  // Bei Signalverlust oder explizitem Status 0: Sanfte Bremse
-  pwmWriteTimeValue = 17;
-  if (isTimeout) Serial.println("Warnung: LoRa-Timeout!");
-  } 
-
   // Überprüfe den Tachometerwert, um den Betriebsmodus festzulegen
-
-  else if (vescTachometer <-1500 ) {
+  if (vescTachometer < -100 ) {
   // Zustand 1: Normaler Betrieb (mehr als X Meter Seil abgewickelt)
 
     if (button.pressedNow()) {
       // Prüfe, ob der Button gedrückt wird, um die normale Steuerung zu überbrücken
-      //    Serial.println("Manuelles Einholen: Button gedrückt (vor 60m Grenze)");
+          Serial.println("Manuelles Einholen: Button gedrückt (vor 15m Grenze)");
       pwmWriteTimeValue = 350; // Manuelles Einholen mit PWM 350
     }
     else {
       // Wenn der Button nicht gedrückt ist, nutze die normale Steuerung
-      //    Serial.println("Normale Steuerung (vor 15m Grenze)");
+          Serial.println("Normale Steuerung (vor 15m Grenze)");
       pwmWriteTimeValue = 12.05 * currentPull + 270;
     }
   }
@@ -291,20 +285,19 @@ void loop()
 
     // Wenn der Tachometerwert -1500 oder größer ist, hat der Button die Kontrolle
     if (button.pressedNow()) {
-    //    Serial.println("Manuelles Einholen der letzten 60m: Button gedrückt");
+        Serial.println("Manuelles Einholen der letzten 15m: Button gedrückt");
       pwmWriteTimeValue = 350; // Manuelles Einholen mit PWM 350
     }
     else {
       // Wenn der Button NICHT gedrückt ist, schalte die Winde ab und bremst den Motor
-      //    Serial.println("Sicherheitsabschaltung: < 15m Seil und Button nicht gedrückt");
-      pwmWriteTimeValue = 10;
+          Serial.println("Sicherheitsabschaltung: < 15m Seil und Button nicht gedrückt");
+      pwmWriteTimeValue = 150;
     } 
   }
 
   pwmWriteTimeValue = constrain(pwmWriteTimeValue, 0, 900);
   Serial.printf("Pulsbreite: %i\n", pwmWriteTimeValue);
   ledcWrite(PWM_PIN, pwmWriteTimeValue);
-
 }
 
 //------------------------------------------------------------------------
@@ -424,5 +417,3 @@ AntwortStruktur ParseString(String Record)
   } while (j <= Record.length());
   return Antwort;
 }
-
-
