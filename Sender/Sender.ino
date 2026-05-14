@@ -56,6 +56,8 @@ unsigned long RegelungsInterval = 6;  //
 unsigned long lastRegelungsTime = 0;   //
 unsigned long SendTimeOut = 3000;       //
 bool AntwortErhalten = true;
+unsigned long letzteBlinkZeit = 0;
+bool ledStatus = false;
 static int loopStep = 0;
 bool toogleSlow = true;
 int8_t targetPull = 0;   // pull value range from -127 to 127
@@ -212,7 +214,6 @@ void loop()
   // Antworten empfangen
   //-------------------------------------------------------------------
   if (rxFlag) { 
-    heltec_led(100); // Paket wurde empfangen
     rxFlag = false;
     rxdata = EmpfangeNachricht();
       //String zerlegen ween mehrer Float Werte in der Nachricht sind
@@ -222,13 +223,26 @@ void loop()
       Serial.print(" Temp : ");
       Serial.println(Antwort.vescTempMotor);
       AntwortErhalten = true;
-    } 
-    else {
-      heltec_led(0);
     }
 
   delay(10);
 
+  // prüfen ob die letzte Antwort der Winde noch aktuell ist (z.B. jünger als 1 Sekunde)
+  bool verbindungAktiv = (millis() - letzteAktion < 2000) && AntwortErhalten;
+  if (verbindungAktiv) {
+    // Wenn die Verbindung steht, blinken wir im 1s Takt (1s an, 1s aus)
+    Serial.println("Verbindung aktiv\n");
+    if (millis() - letzteBlinkZeit >= 1000) {
+      letzteBlinkZeit = millis();
+      ledStatus = !ledStatus; // Zustand umkehren
+      Serial.println("Status umkehren\n");
+      heltec_led(ledStatus ? 100 : 0);
+    }
+  } else {
+    // Wenn die Verbindung unterbrochen ist: LED aus
+    heltec_led(0); 
+    ledStatus = false;
+  }
 
   btnup.update();
   if (btnup.isSingleClick()) {
@@ -328,7 +342,7 @@ void SendeNachricht(String Nachricht)
 
   transmissionState = radio.startTransmit(Nachricht);
   if (_radiolib_status == RADIOLIB_ERR_NONE) {
-    Serial.printf("TX  [%s]\n", (Nachricht.c_str()));
+    //Serial.printf("TX  [%s]\n", (Nachricht.c_str()));
 
   } else {
     Serial.printf("Error (%i)\n", _radiolib_status);
